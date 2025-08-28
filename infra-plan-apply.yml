@@ -1,0 +1,28 @@
+name: infra-plan-apply
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: [ "ops/terraform/**" ]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  tf:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ops/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/gh-oidc-terraform
+      - name: Terraform Init/Plan
+        run: |
+          terraform init
+          terraform plan -out tfplan
+      - name: Terraform Apply (manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve tfplan
